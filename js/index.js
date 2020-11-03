@@ -175,7 +175,7 @@ function getColorbyDeathRisk(r){
     return d3.rgb(parseInt(255*Math.sqrt(r)),parseInt(255-255*Math.sqrt(r)),0)
 }
 
-d3.csv("../clu_info_new.csv",type,function (err,data) {
+d3.csv("clu_info_new.csv",type,function (err,data) {
     if(err){
         alert("clu_info: error loading data");
         return;
@@ -204,7 +204,7 @@ d3.csv("../clu_info_new.csv",type,function (err,data) {
         lastSeenPoint[d.patient]=i;
     };
 
-    d3.csv("../cluster.csv",function (err,data) {
+    d3.csv("cluster.csv",function (err,data) {
 
         if (err) {
             alert("cluster: error loading data");
