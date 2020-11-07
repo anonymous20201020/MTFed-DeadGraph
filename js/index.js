@@ -14,10 +14,12 @@ function type(d) {
     d.im={};
     d.age=+d.age;
     d.prevAge=-1;
+    d.prevLOS=-1
     d.prevIndex=-1;
     d.biomarker1_albumin=+d.biomarker1_albumin;
     d.biomarker2_k=+d.biomarker2_k;
     d.cluster=+d.cluster;
+    d.los=+d.los;
     d.death_risk=+d.death_risk + 0.05;
     d.dead =+d.dead;
     d.id=+d.id;
@@ -162,6 +164,9 @@ var clu_info;
 var cluster;
 var patients=[];
 var patientsObjs={};
+var los = [];
+var minlos = 99999;
+var maxlos = 0;
 var ages=[];
 var minage=99999;
 var maxage=0;
@@ -175,7 +180,7 @@ function getColorbyDeathRisk(r){
     return d3.rgb(parseInt(255*Math.sqrt(r)),parseInt(255-255*Math.sqrt(r)),0)
 }
 
-d3.csv("clu_info_new.csv",type,function (err,data) {
+d3.csv("clu_info_outcome.csv",type,function (err,data) {
     if(err){
         alert("clu_info: error loading data");
         return;
@@ -192,14 +197,14 @@ d3.csv("clu_info_new.csv",type,function (err,data) {
             patientsObjs[d.patient]={path:[],firstDate:-1,deathDate:-1};
             patientsObjs[d.patient].path.push([xScale(d.posX),yScale(d.posY)]);
             k++;
-            clu_info[i].prevAge=d.age;
-            patientsObjs[d.patient].firstDate=d.age;
-            patientsObjs[d.patient].deathDate=d.age;
+            clu_info[i].prevLOS=d.los;
+            patientsObjs[d.patient].firstDate=d.los;
+            patientsObjs[d.patient].deathDate=d.los;
         }else {
-            clu_info[i].prevAge=clu_info[lastSeenPoint[d.patient]].age;
+            clu_info[i].prevLOS=clu_info[lastSeenPoint[d.patient]].los;
             clu_info[i].prevIndex=lastSeenPoint[d.patient];
             patientsObjs[d.patient].path.push([xScale(d.posX),yScale(d.posY)]);
-            patientsObjs[d.patient].deathDate=d.age;
+            patientsObjs[d.patient].deathDate=d.los;
         }
         lastSeenPoint[d.patient]=i;
     };
@@ -246,8 +251,9 @@ function drawAxis() {
         maxX=(maxX<d.posX)?d.posX:maxX;
         minY=(minY>d.posY)?d.posY:minY;
         maxY=(maxY<d.posY)?d.posY:maxY;
-        minage=(minage>d.age)?d.age:minage;
-        maxage=(maxage<d.age)?d.age:maxage;
+        
+        minlos=(minlos>d.los)?d.los:minlos;
+        maxlos=(maxlos<d.los)?d.los:maxlos;
     }
     xScale = d3.scale.linear()
         .domain([minX, maxX])
@@ -299,7 +305,7 @@ function drawPoint(){
         .on("mouseover",function (d,i) {
             filterbyPatient(d.patient);
             d3.select("#panelInfo1").text("Patient："+d.patient);
-            d3.select("#panelInfo2").text("Age："+d.age);
+            d3.select("#panelInfo2").text("LOS："+(-d.los));
             d3.select("#panelInfo3").text("Cluster："+d.cluster);
             d3.select("#infoPanel").attr("transform","translate("+((xScale(d.posX)+50-panelW-20)>0?(xScale(d.posX)+50-panelW-20):(xScale(d.posX)+50+20))+","+((yScale(d.posY)+50-panelH-20)>0?(yScale(d.posY)+50-panelH-20):(yScale(d.posY)+50+20))+")").attr("display","");
             d3.select("#panelCNum1").text(d.ima[0][1].toFixed(3));
@@ -341,8 +347,8 @@ function drawPoint(){
 }
 var mouseoverPatientCount=0;
 function drawControl() {
-    for (var yy=Math.floor(minage);yy<Math.ceil(maxage);yy++)
-        for (var mm=1;mm<=12;mm++)ages[ages.length]=yy+0.01*mm;
+    for (var yy=Math.floor(minlos);yy<Math.ceil(maxlos);yy++)
+        for (var mm=1;mm<=12;mm++)los[los.length]=yy+0.01*mm;
     var width=document.getElementById("mainsvg").width.baseVal.value;
     var height=document.getElementById("mainsvg").height.baseVal.value;
     control.selectAll('.patientRect').data(patients).enter()
@@ -365,23 +371,23 @@ function drawControl() {
             filterbyPatientCancel(d);
         });
 
-    control.selectAll('.ageRect').data(ages).enter()
-        .append('rect').attr('class','ageRect')
+    control.selectAll('.losRect').data(los).enter()
+        .append('rect').attr('class','losRect')
         .attr('x',function (d) {
-            return ages.indexOf(d)*width/ages.length;
+            return los.indexOf(d)*width/los.length;
         })
-        .attr('y',100).attr('width',1.0*width/ages.length).attr('height',20)
+        .attr('y',100).attr('width',1.0*width/los.length).attr('height',20)
         .style('fill','cyan')
         .on("mouseover",function (d,i) {
             //console.log(d);
-            d3.select("#textInfo1").text("Age："+d);
-            filterbyAge(d);
+            d3.select("#textInfo1").text("LOS："+(-d));
+            filterbyLOS(d);
             })
         .on("mouseout",function (d,i) {
             //console.log(d);
 
             d3.select("#textInfo1").text("");
-            filterbyAgeCancel(d);
+            filterbyLOSCancel(d);
         });
 
 }
@@ -414,20 +420,20 @@ function filterbyPatientCancel(d){
     },10);
 }
 
-function filterbyAge(d) {
+function filterbyLOS(d) {
     if(mouseoverPatientCount==0) {
         main.selectAll(".point").filter(function (dd, i) {
-            return dd.age != d
+            return dd.los != d
         }).attr("display","none");
     }
     mouseoverPatientCount++;
-    main.selectAll(".point").filter(function(dd,i){return dd.age>=d&&dd.prevAge<d}).style('fill-opacity',0.9).style('stroke-opacity',0.9).attr("display","");
+    main.selectAll(".point").filter(function(dd,i){return dd.los>=d&&dd.prevLOS<d}).style('fill-opacity',0.9).style('stroke-opacity',0.9).attr("display","");
     main.selectAll(".line").filter(function (dd,i) {return patientsObjs[dd].firstDate<=d&&patientsObjs[dd].deathDate>=d}).style('stroke-opacity','0.5').attr("display","");
     main.selectAll(".line").filter(function (dd,i) {return !(patientsObjs[dd].firstDate<=d&&patientsObjs[dd].deathDate>=d)}).attr("display","none");
-    //main.selectAll(".point").filter(function(dd,i){return !(dd.age>=d&&dd.prevAge<d)}).style('fill-opacity','0.0');
+    //main.selectAll(".point").filter(function(dd,i){return !(dd.los>=d&&dd.prevLOS<d)}).style('fill-opacity','0.0');
 }
-function filterbyAgeCancel(d) {
-    main.selectAll(".point").filter(function(dd,i){return (dd.age>=d&&dd.prevAge<d)}).attr("display","none");
+function filterbyLOSCancel(d) {
+    main.selectAll(".point").filter(function(dd,i){return (dd.los>=d&&dd.prevLOS<d)}).attr("display","none");
     setTimeout(function () {
         mouseoverPatientCount--;
         if(mouseoverPatientCount==0) {
@@ -499,29 +505,29 @@ function drawCluster() {
 
 $("#noteModal").modal("show");
 
-var playAgeIndex=-1;
+var playLOSIndex=-1;
 var playInterval;
 $("#btnPlay").click(function () {
-    if(playAgeIndex==-1){
-        playAgeIndex=0;
-        var d=ages[playAgeIndex];
-        d3.select("#textInfo1").text("Age："+d);
-        filterbyAge(d);
+    if(playLOSIndex==-1){
+        playLOSIndex=0;
+        var d=los[playLOSIndex];
+        d3.select("#textInfo1").text("LOS："+(--d));
+        filterbyLOS(d);
         playInterval=setInterval(function () {
-            d=ages[playAgeIndex];
+            d=los[playLOSIndex];
             d3.select("#textInfo1").text("");
-            filterbyAgeCancel(d);
-            playAgeIndex=playAgeIndex+1;
-            playAgeIndex=playAgeIndex%ages.length;
-            d=ages[playAgeIndex];
-            d3.select("#textInfo1").text("Age："+d);
-            filterbyAge(d);
+            filterbyLOSCancel(d);
+            playLOSIndex=playLOSIndex+1;
+            playLOSIndex=playLOSIndex%los.length;
+            d=los[playLOSIndex];
+            d3.select("#textInfo1").text("LOS："+(-d));
+            filterbyLOS(d);
         },25)
     }else {
         clearInterval(playInterval);
-        var d=ages[playAgeIndex];
+        var d=los[playLOSIndex];
         d3.select("#textInfo1").text("");
-        filterbyAgeCancel(d);
-        playAgeIndex=-1;
+        filterbyLOSCancel(d);
+        playLOSIndex=-1;
     }
 })
