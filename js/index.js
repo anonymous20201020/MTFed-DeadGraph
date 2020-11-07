@@ -285,7 +285,6 @@ function clearPoint() {
     main.selectAll('.point').remove();
 }
 function drawPoint(){
-
     var width=document.getElementById("mainsvg").width.baseVal.value;
     var height=document.getElementById("mainsvg").height.baseVal.value;
     main.selectAll('.point').data(clu_info).enter()
